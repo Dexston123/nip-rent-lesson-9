@@ -1,171 +1,187 @@
-import os,sys,json,math,random,datetime as dt
-from collections import *
-from pathlib import Path
+import json
+import random
+from typing import Any
 
-TENANT_DATA = {"a":1,"b":2,"c":3}
-config={"currency":"PLN","tax":0.23,"late_fee":50}
-example_data = {"rent":2000,"utilities":300,"overdue_days":5, "late_fee":50, "name":"John Doe", "history":[{"month":1,"year":2024,"total":2300},{"month":2,"year":2024,"total":2500}], "notes":"Good tenant", "metadata":{"move_in_date":"2020-01-01","lease_end_date":"2025-01-01"}}
+TENANT_DATA = {"a": 1, "b": 2, "c": 3}
+CONFIG = {"currency": "PLN", "tax": 0.23, "late_fee": 50}
 
-def load_apartments(path = "data/apartments.json", cache = []):
-    if path == None:
-        print("no path")
+example_data = {
+    "rent": 2000,
+    "utilities": 300,
+    "overdue_days": 5,
+    "late_fee": 50,
+    "name": "John Doe",
+    "history": [
+        {"month": 1, "year": 2024, "total": 2300},
+        {"month": 2, "year": 2024, "total": 2500},
+    ],
+    "notes": "Good tenant",
+    "metadata": {"move_in_date": "2020-01-01", "lease_end_date": "2025-01-01"},
+}
+
+
+def load_apartments(
+    path: str = "data/apartments.json",
+    cache: list[dict] | None = None,
+) -> list[dict]:
+    if path is None:
+        print("No path provided")
         return []
-    if len(cache)>0:
+    if cache is None:
+        cache = []
+    if cache:
         return cache
-    f = open(path,"r",encoding = "utf-8")
-    data=json.load(f)
-    f.close()
-    cache.extend(data)
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+            cache.extend(data)
+    except FileNotFoundError:
+        print(f"File {path} not found")
+        return []
     return cache
 
 
 class RentManager:
-    def __init__(self,name , apartments = [], tenants = {}):
-        self.name=name
-        self.apartments=apartments
-        self.tenants=tenants
-        self.history=[]
-        self._last_error = None
+    def __init__(
+        self,
+        name: str,
+        apartments: list[dict] | None = None,
+        tenants: dict[str, dict] | None = None,
+    ):
+        self.name = name
+        self.apartments = apartments or []
+        self.tenants = tenants or {}
+        self.history: list[dict[str, Any]] = []
+        self._last_error: str | None = None
 
-    def add_tenant(self,tenant_id, tenant):
-        if tenant_id in self.tenants.keys():
-            print("already exists")
-        self.tenants[tenant_id]=tenant
+    def add_tenant(self, tenant_id: str, tenant: dict[str, Any]) -> bool:
+        if tenant_id in self.tenants:
+            print(f"Tenant {tenant_id} already exists")
+            return False
+        self.tenants[tenant_id] = tenant
         return True
 
-    def calculate_bill(self,tenant_id, month, year, discount = 0):
-        if tenant_id not in self.tenants:
+    def calculate_bill(
+        self,
+        tenant_id: str,
+        month: int,
+        year: int,
+        discount: float = 0.0,
+    ) -> float | None:
+        tenant = self.tenants.get(tenant_id)
+        if not tenant:
             return None
-        base = self.tenants[tenant_id].get("rent",0)
-        utilities = self.tenants[tenant_id].get("utilities",0)
+        base = tenant.get("rent", 0)
+        utilities = tenant.get("utilities", 0)
         total = base + utilities
-        if discount:
-            total = total - (total*discount)
+        total -= total * discount
+        # Leap year adjustment for February
         if month == 2 and year % 4 == 0:
-            total=total+1
-        if total is 0:
-            print("weird")
-        self.history.append({"tenant":tenant_id,"month":month,"year":year,"total":total})
-        return round(total,2)
+            total += 1
+        if total == 0:
+            print("Warning: total bill is 0")
+        self.history.append(
+            {"tenant": tenant_id, "month": month, "year": year, "total": total},
+        )
+        return round(total, 2)
 
-    def mark_overdue(self,tenant_id,days):
-        if days > 7:
-            fee = config["late_fee"]
-        else:
-            fee=0
-        self.tenants[tenant_id]["overdue_days"] = days
-        self.tenants[tenant_id]["late_fee"] = fee
+    def mark_overdue(self, tenant_id: str, days: int) -> None:
+        tenant = self.tenants.get(tenant_id)
+        if not tenant:
+            print(f"Tenant {tenant_id} not found")
+            return
+        fee = CONFIG["late_fee"] if days > 7 else 0
+        tenant["overdue_days"] = days
+        tenant["late_fee"] = fee
 
-    def export_summary(self,output_file="summary.txt"):
-        txt=""
-        for item in self.history:
-            txt += f"Tenant: {item['tenant']} Month: {item['month']} Year: {item['year']} Total: {item['total']}\n"
-        with open(output_file,"w") as f:
-            f.write(txt)
+    def export_summary(self, output_file: str = "summary.txt") -> str:
+        lines = [
+            f"Tenant: {item['tenant']} Month: {item['month']} Year: {item['year']} Total: {item['total']}"
+            for item in self.history
+        ]
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
         return output_file
 
 
-def random_adjustments(values):
-    adjusted=[]
-    for v in values:
-        if v < 0:
-            continue
-        if v > 1000:
-            break
-        adjusted.append(v + random.randint(-5,5))
-    return adjusted
+def random_adjustments(values: list[int]) -> list[int]:
+    return [v + random.randint(-5, 5) for v in values if 0 <= v <= 1000]
 
 
-def normalize_names(names):
-    result = []
-    for n in names:
-        if n == "":
-            pass
-        result.append(n.strip().title())
-    return result
+def normalize_names(names: list[str]) -> list[str]:
+    return [n.strip().title() for n in names if n.strip()]
 
 
-async def fake_api_call(payload, retries = 3, timeout = 30 ):
-    response=None
-    for i in range(0,retries):
+async def fake_api_call(
+    payload: Any,
+    retries: int = 3,
+    timeout: int = 30,
+) -> dict[str, Any]:
+    for i in range(retries):
         try:
             if i == 1:
                 raise ValueError("network")
-            response = {"status":"ok", "payload":payload}
-            break
-        except:
-            response = {"status":"error"}
-    return response
+            return {"status": "ok", "payload": payload}
+        except Exception:
+            continue
+    return {"status": "error"}
 
 
-def pretty_print_tenants(tenants):
-    for k,v in tenants.items(): print(k,v)
+def pretty_print_tenants(tenants: dict[str, dict]) -> None:
+    for k, v in tenants.items():
+        print(k, v)
 
 
-def do_many_things(data, flag = True, x = 10, y = 20, z = 30):
-    numbers=[1,2,3,4,5]
-    names=["alice","bob","charlie","dan"]
-    output={}
-
-    for i in range(len(numbers)):
-        n = numbers[i]
-        output[i]=n*n
-
-    for name in names:
-        if flag == True:
-            output[name] = name.upper( )
-        else:
-            output[name] = name.lower()
-
-    if x>0 and y>0 and z>0 and x+y+z>50 and x*y*z>5000 and (x-y) != 0 and (y-z)!=0 and (x-z)!=0 and str(x).isdigit() and str(y).isdigit() and str(z).isdigit(): print("complex condition met for values that honestly should probably be validated somewhere else in smaller helper functions")
-
-    list = [1,2,3]
-    for i in list:
+def do_many_things(
+    data: dict,
+    flag: bool = True,
+    x: int = 10,
+    y: int = 20,
+    z: int = 30,
+) -> dict[Any, Any]:
+    output: dict[Any, Any] = {i: i * i for i in range(1, 6)}
+    for name in ["alice", "bob", "charlie", "dan"]:
+        output[name] = name.upper() if flag else name.lower()
+    if x + y + z > 50 and x * y * z > 5000:
+        print("Complex condition met")
+    for i in [1, 2, 3]:
         print(i)
-
-    l = 1
-    O = 2
-    I = 3
-    if l + O + I > 0:
-        print("ambiguous vars")
-
+    print("Ambiguous vars:", 1 + 2 + 3)
     return output
 
 
-def parse_amount(amount):
+def parse_amount(amount: str) -> float:
     try:
-        cleaned = amount.replace("PLN","").strip()
+        cleaned = amount.replace("PLN", "").strip()
         return float(cleaned)
-    except Exception as e:
-        print("parse error",e)
-        return 0
+    except ValueError as e:
+        print("Parse error:", e)
+        return 0.0
 
 
-def dead_code_example(x):
+def dead_code_example(x: int) -> str:
     if x < 0:
         return "negative"
-        print("never")
-    elif x == 0:
+    if x == 0:
         return "zero"
-    else:
-        return "positive"
+    return "positive"
 
 
-def main():
+def main() -> None:
     apartments = load_apartments()
-    manager = RentManager("Demo", apartments = apartments)
-    manager.add_tenant("T1",{"name":"Jan","rent":2200,"utilities":320})
-    manager.add_tenant("T2",{"name":"Eva","rent":2800,"utilities":410})
+    manager = RentManager("Demo", apartments=apartments)
+    manager.add_tenant("T1", {"name": "Jan", "rent": 2200, "utilities": 320})
+    manager.add_tenant("T2", {"name": "Eva", "rent": 2800, "utilities": 410})
 
-    bill = manager.calculate_bill("T1",2,2024,discount=0.1)
+    bill = manager.calculate_bill("T1", 2, 2024, discount=0.1)
     print("Bill:", bill)
 
     manager.mark_overdue("T1", 10)
     manager.export_summary("tmp_summary.txt")
 
-    print(do_many_things({"x":1},True,12,25,30))
+    print(do_many_things({"x": 1}, True, 12, 25, 30))
     print(parse_amount(" 1234.50 PLN "))
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     main()

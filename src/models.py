@@ -1,17 +1,12 @@
-"""
-Data models for the apartment management system.
-"""
+"""Data models for the apartment management system."""
 
 import json
-from typing import Dict, List
 
 from pydantic import BaseModel
 
 
 class Parameters(BaseModel):
-    """
-    Configuration parameters for the apartment management system.
-    """
+    """Configuration parameters for the apartment management system."""
 
     apartments_json_path: str = "data/apartments.json"
     tenants_json_path: str = "data/tenants.json"
@@ -25,39 +20,33 @@ class Parameters(BaseModel):
 
 
 class Room(BaseModel):
-    """
-    A room model in the apartment.
-    """
+    """A room model in the apartment."""
 
     name: str
     area_m2: float
 
 
 class Apartment(BaseModel):
-    """
-    An apartment model containing details about the apartment and its rooms.
-    """
+    """An apartment model containing details about the apartment and its rooms."""
 
     key: str
     name: str
     location: str
     area_m2: float
-    rooms: Dict[str, Room]
+    rooms: dict[str, Room]
 
     @staticmethod
-    def from_json_file(file_path: str) -> Dict[str, "Apartment"]:
+    def from_json_file(file_path: str) -> dict[str, "Apartment"]:
         """Load apartments from a JSON file and return a dictionary of Apartment instances."""
         data = None
-        with open(file_path, "r", encoding="utf-8") as file:
+        with open(file_path, encoding="utf-8") as file:
             data = json.load(file)
         assert isinstance(data, dict), "Expected a dictionary of apartments"
         return {key: Apartment(**apartment) for key, apartment in data.items()}
 
 
 class Tenant(BaseModel):
-    """
-    A tenant model in the apartment management system.
-    """
+    """A tenant model in the apartment management system."""
 
     name: str
     apartment: str
@@ -68,37 +57,33 @@ class Tenant(BaseModel):
     date_agreement_to: str
 
     @staticmethod
-    def from_json_file(file_path: str) -> Dict[str, "Tenant"]:
+    def from_json_file(file_path: str) -> dict[str, "Tenant"]:
         """Load tenants from a JSON file and return a dictionary of Tenant instances."""
         data = None
-        with open(file_path, "r", encoding="utf-8") as file:
+        with open(file_path, encoding="utf-8") as file:
             data = json.load(file)
         assert isinstance(data, dict), "Expected a dictionary of tenants"
         return {key: Tenant(**tenant) for key, tenant in data.items()}
 
 
 class TenantBlacklistEntry(BaseModel):
-    """
-    A blacklist entry for a tenant in the apartment management system.
-    """
+    """A blacklist entry for a tenant in the apartment management system."""
 
     tenant: str
     reason: str
 
     @staticmethod
-    def from_json_file(file_path: str) -> List["TenantBlacklistEntry"]:
+    def from_json_file(file_path: str) -> list["TenantBlacklistEntry"]:
         """Load tenant blacklist entries from a JSON file."""
         data = None
-        with open(file_path, "r", encoding="utf-8") as file:
+        with open(file_path, encoding="utf-8") as file:
             data = json.load(file)
         assert isinstance(data, list), "Expected a list of blacklist entries"
         return [TenantBlacklistEntry(**entry) for entry in data]
 
 
 class Transfer(BaseModel):
-    """
-    A transfer model representing a financial transaction in the apartment management system.
-    """
+    """A transfer model representing a financial transaction in the apartment management system."""
 
     amount_pln: float
     date: str
@@ -108,19 +93,17 @@ class Transfer(BaseModel):
     type: str | None = None
 
     @staticmethod
-    def from_json_file(file_path: str) -> List["Transfer"]:
+    def from_json_file(file_path: str) -> list["Transfer"]:
         """Load transfers from a JSON file and return a list of Transfer instances."""
         data = None
-        with open(file_path, "r", encoding="utf-8") as file:
+        with open(file_path, encoding="utf-8") as file:
             data = json.load(file)
         assert isinstance(data, list), "Expected a list of transfers"
         return [Transfer(**transfer) for transfer in data]
 
 
 class Bill(BaseModel):
-    """
-    A bill model representing a financial obligation in the apartment management system.
-    """
+    """A bill model representing a financial obligation in the apartment management system."""
 
     amount_pln: float
     date_due: str
@@ -130,18 +113,17 @@ class Bill(BaseModel):
     type: str
 
     @staticmethod
-    def from_json_file(file_path: str) -> List["Bill"]:
+    def from_json_file(file_path: str) -> list["Bill"]:
         """Load bills from a JSON file and return a list of Bill instances."""
         data = None
-        with open(file_path, "r", encoding="utf-8") as file:
+        with open(file_path, encoding="utf-8") as file:
             data = json.load(file)
         assert isinstance(data, list), "Expected a list of bills"
         return [Bill(**bill) for bill in data]
 
 
 class ApartmentSettlement(BaseModel):
-    """
-    An apartment settlement model representing the financial summary for an apartment
+    """An apartment settlement model representing the financial summary for an apartment
     in a given month and year.
     """
 
@@ -155,8 +137,7 @@ class ApartmentSettlement(BaseModel):
 
 
 class TenantSettlement(BaseModel):
-    """
-    A tenant settlement model representing the financial summary for a tenant
+    """A tenant settlement model representing the financial summary for a tenant
     in a given month and year.
     """
 
@@ -170,9 +151,7 @@ class TenantSettlement(BaseModel):
 
 
 class ApartmentEvent(BaseModel):
-    """
-    An apartment event model representing an event or issue related to an apartment.
-    """
+    """An apartment event model representing an event or issue related to an apartment."""
 
     date: str
     apartment: str
@@ -182,10 +161,10 @@ class ApartmentEvent(BaseModel):
     solved: bool = False
 
     @staticmethod
-    def from_json_file(file_path: str) -> List["ApartmentEvent"]:
+    def from_json_file(file_path: str) -> list["ApartmentEvent"]:
         """Load apartment events from a JSON file."""
         data = None
-        with open(file_path, "r", encoding="utf-8") as file:
+        with open(file_path, encoding="utf-8") as file:
             data = json.load(file)
         assert isinstance(data, list), "Expected a list of apartment events"
         return [ApartmentEvent(**event) for event in data]
